@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import path from 'path';
 
 const app = express();
 app.use(cors());
@@ -10,9 +11,17 @@ app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "http://localhost:5173", // Make sure this is your correct frontend URL
     methods: ["GET", "POST"]
   }
+});
+
+// Serve static files from the "dist" directory
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Serve the frontend on the root route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Store users and messages
@@ -29,7 +38,7 @@ io.on('connection', (socket) => {
   socket.on('user-join', (username) => {
     users[socket.id] = username;
     console.log(`${username} joined the chat`);
-    
+
     // Notify all users about the new user
     io.emit('user-joined', { 
       id: socket.id, 
@@ -47,13 +56,13 @@ io.on('connection', (socket) => {
       text: messageData.text,
       timestamp: new Date().toISOString()
     };
-    
+
     messages.push(message);
     // Keep only the last 100 messages
     if (messages.length > 100) {
       messages.shift();
     }
-    
+
     // Broadcast message to all users
     io.emit('new-message', message);
   });
@@ -72,7 +81,7 @@ io.on('connection', (socket) => {
     if (users[socket.id]) {
       const username = users[socket.id];
       console.log(`${username} disconnected`);
-      
+
       // Notify all users about the disconnection
       io.emit('user-left', {
         id: socket.id,
@@ -80,7 +89,7 @@ io.on('connection', (socket) => {
         message: `${username} left the chat`,
         timestamp: new Date().toISOString()
       });
-      
+
       delete users[socket.id];
     }
   });
